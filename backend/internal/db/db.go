@@ -5,9 +5,29 @@ import (
 	"log"
 	"os"
 
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
+
+func RunMigrations() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found")
+	}
+
+	dsn := os.Getenv("DATABASE_URL")
+
+	m, err := migrate.New("file://migrations", dsn)
+	if err != nil {
+		log.Fatal("Migration init failed: ", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatal("Migration failed: ", err)
+	}
+
+	log.Println("Migrations done")
+}
 
 func Connect() (*pgxpool.Pool, error) {
 

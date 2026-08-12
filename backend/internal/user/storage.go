@@ -67,7 +67,7 @@ func (s *Storage) IsRegistered(ctx context.Context, nickname string, phone strin
 	var role string
 
 	err := s.pool.QueryRow(ctx,
-		"SELECT role FROM users WHERE nickname = $1 OR phone_number = $2 )",
+		"SELECT role FROM users WHERE nickname = $1 OR phone_number = $2",
 		nickname,
 		phone,
 	).Scan(&role)

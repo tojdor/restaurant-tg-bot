@@ -5,5 +5,5 @@ CREATE TABLE orders(
     is_served BOOLEAN DEFAULT FALSE,
     is_payed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    closed_at TIMESTAMP,
+    closed_at TIMESTAMP
 );
