@@ -2,7 +2,7 @@ package menuitem
 
 import (
 	"backend/internal/models"
-	errors "backend/internal/my_errors"
+	myerrors "backend/internal/my_errors"
 	"context"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -32,16 +32,17 @@ func (s *Storage) Create(ctx context.Context, menu models.MenuItem) (int, error)
 	return id, err
 }
 
-func (s *Storage) GetAll(ctx context.Context) ([]models.MenuItem, error) {
+func (s *Storage) GetByCategory(category string, ctx context.Context) ([]models.MenuItem, error) {
 
 	menu_items := make([]models.MenuItem, 0)
 
 	rows, err := s.pool.Query(
 		ctx,
-		"SELECT id, name, price, category FROM menu_item")
+		"SELECT id, name, price, category FROM menu_item WHERE category = $1", category)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var menu_item models.MenuItem
@@ -60,8 +61,6 @@ func (s *Storage) GetAll(ctx context.Context) ([]models.MenuItem, error) {
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
-
-	defer rows.Close()
 
 	return menu_items, nil
 }
@@ -123,7 +122,7 @@ func (s *Storage) Update(ctx context.Context, menu models.MenuItem) error {
 	}
 
 	if res.RowsAffected() == 0 {
-		return errors.ErrNotFound
+		return myerrors.ErrNotFound
 	}
 
 	return nil
@@ -141,7 +140,7 @@ func (s *Storage) Delete(ctx context.Context, id int) error {
 	}
 
 	if res.RowsAffected() == 0 {
-		return errors.ErrNotFound
+		return myerrors.ErrNotFound
 	}
 
 	return nil

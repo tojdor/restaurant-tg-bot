@@ -34,8 +34,25 @@ func (s *Service) Create(ctx context.Context, menu models.MenuItem) (int, error)
 	return id, nil
 }
 
-func (s *Service) GetAll(ctx context.Context) ([]models.MenuItem, error) {
-	return s.storage.GetAll(ctx)
+func (s *Service) GetByCategory(category string, ctx context.Context) ([]models.MenuItem, error) {
+	if category == "" {
+		return nil, myerrors.ErrBadRequest
+	}
+
+	return s.storage.GetByCategory(category, ctx)
+}
+
+func (s *Service) GetByName(name string, ctx context.Context) (models.MenuItem, error) {
+	if name == "" {
+		return models.MenuItem{}, myerrors.ErrBadRequest
+	}
+
+	dish, err := s.storage.GetByName(ctx, name)
+	if err != nil {
+		return models.MenuItem{}, err
+	}
+
+	return dish, nil
 }
 
 func (s *Service) Update(ctx context.Context, menu models.MenuItem) error {

@@ -19,12 +19,14 @@ func main() {
 	}
 	defer pool.Close()
 
+	//Пользователи
 	userStorage := user.NewStorage(pool)
 	userService := user.NewService(userStorage)
 	userHandler := user.NewHandler(userService)
 
+	//Роутер
 	mux := http.NewServeMux()
-	mux.HandleFunc("/login", userHandler.IsRegisteredHandler)
+	userHandler.RegisterRoutes(mux)
 
 	log.Println("Server started on :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {

@@ -2,10 +2,13 @@ package user
 
 import (
 	"backend/internal/models"
+	myerrors "backend/internal/my_errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type Handler struct {
@@ -21,7 +24,7 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	var user models.User
 
@@ -44,7 +47,7 @@ func (h *Handler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]int{"id": id})
 }
 
-func (h *Handler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	users, err := h.service.GetUsers(r.Context())
 	if err != nil {
 		http.Error(w, "failed to get users", http.StatusInternalServerError)
@@ -55,7 +58,7 @@ func (h *Handler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(users)
 }
 
-func (h *Handler) IsRegisteredHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) IsRegistered(w http.ResponseWriter, r *http.Request) {
 
 	var userinfo IsRegisteredBody
 
@@ -73,4 +76,34 @@ func (h *Handler) IsRegisteredHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(role)
 
+}
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "getting id error", http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.Delete(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, myerrors.ErrBadRequest) {
+			http.Error(w, "getting id error", http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, myerrors.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "unexpected error", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /user", h.Register)
+	mux.HandleFunc("GET /user", h.GetAll)
+	mux.HandleFunc("GET /user/login", h.IsRegistered)
+	mux.HandleFunc("DELETE /user/{id}", h.Delete)
 }
