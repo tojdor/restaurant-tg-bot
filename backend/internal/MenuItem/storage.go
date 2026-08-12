@@ -3,7 +3,6 @@ package menuitem
 import (
 	"backend/internal/models"
 	errors "backend/internal/my_errors"
-	myerrors "backend/internal/my_errors"
 	"context"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,24 +20,19 @@ func NewStorage(pool *pgxpool.Pool) *Storage {
 
 func (s *Storage) Create(ctx context.Context, menu models.MenuItem) (int, error) {
 
-	_, err := s.GetMenuItemByName(ctx, menu.Name)
-	if err == nil {
-		return 0, myerrors.ErrAlreadyExists
-	}
-
 	var id int
-	err = s.pool.QueryRow(
+	err := s.pool.QueryRow(
 		ctx,
 		"INSERT INTO menu_item (name, price, category) VALUES($1, $2, $3) RETURNING id",
 		menu.Name,
 		menu.Price,
 		menu.Category,
-	).Scan(id)
+	).Scan(&id)
 
 	return id, err
 }
 
-func (s *Storage) GetMenuItems(ctx context.Context) ([]models.MenuItem, error) {
+func (s *Storage) GetAll(ctx context.Context) ([]models.MenuItem, error) {
 
 	menu_items := make([]models.MenuItem, 0)
 
@@ -67,10 +61,12 @@ func (s *Storage) GetMenuItems(ctx context.Context) ([]models.MenuItem, error) {
 		return nil, err
 	}
 
+	defer rows.Close()
+
 	return menu_items, nil
 }
 
-func (s *Storage) GetMenuItemByID(ctx context.Context, id int) (models.MenuItem, error) {
+func (s *Storage) GetByID(ctx context.Context, id int) (models.MenuItem, error) {
 
 	var menu_item models.MenuItem
 
@@ -91,7 +87,7 @@ func (s *Storage) GetMenuItemByID(ctx context.Context, id int) (models.MenuItem,
 	return menu_item, err
 }
 
-func (s *Storage) GetMenuItemByName(ctx context.Context, name string) (models.MenuItem, error) {
+func (s *Storage) GetByName(ctx context.Context, name string) (models.MenuItem, error) {
 
 	var menu_item models.MenuItem
 
@@ -112,7 +108,28 @@ func (s *Storage) GetMenuItemByName(ctx context.Context, name string) (models.Me
 	return menu_item, err
 }
 
-func (s *Storage) DeleteMenuItem(ctx context.Context, id int) error {
+func (s *Storage) Update(ctx context.Context, menu models.MenuItem) error {
+	res, err := s.pool.Exec(
+		ctx,
+		"UPDATE menu_item set name = $1, price = $2, category = $3 WHERE id = $4",
+		menu.Name,
+		menu.Price,
+		menu.Category,
+		menu.ID,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if res.RowsAffected() == 0 {
+		return errors.ErrNotFound
+	}
+
+	return nil
+}
+
+func (s *Storage) Delete(ctx context.Context, id int) error {
 
 	res, err := s.pool.Exec(
 		ctx,
