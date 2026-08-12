@@ -81,7 +81,7 @@ func (s *Storage) IsRegistered(ctx context.Context, nickname string, phone strin
 
 func (s *Storage) Delete(ctx context.Context, id int) error {
 	result, err := s.pool.Exec(ctx,
-		"DELETE FROM users WHERE i = $1", id)
+		"DELETE FROM users WHERE id = $1", id)
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-type MenuIem struct {
+type MenuItem struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`
 	Price    int    `json:"price"`
@@ -32,8 +32,8 @@ type Table struct {
 }
 
 type User struct {
-	ID            int    `json:"id"`
-	Nickname      string `json:"nickname"`
+	ID          int    `json:"id"`
+	Nickname    string `json:"nickname"`
 	PhoneNumber string `json:"phone_number"`
-	Role          string `json:"role"`
+	Role        string `json:"role"`
 }
