@@ -1,59 +1,92 @@
 # Restaurant Telegram Bot Backend
 
-Backend is intended to be called only by the Telegram bot service. It is not a public API for Telegram users.
+Backend предназначен **только для вызова сервисом Telegram-бота**.
+Это не публичный API для пользователей Telegram.
 
-## Authentication and authorization
+---
 
-Every endpoint requires both headers:
+## Authentication and Authorization
+
+Каждый endpoint требует наличия **обоих** заголовков:
 
 ```http
 X-Bot-Secret: <BOT_INTERNAL_SECRET>
-X-Telegram-User-ID: <Telegram user ID from Update.Message.From.ID or CallbackQuery.From.ID>
+X-Telegram-User-ID: <Telegram user ID из Update.Message.From.ID или CallbackQuery.From.ID>
 ```
 
-`BOT_INTERNAL_SECRET` is an environment variable shared only by the bot and backend. The backend compares it in constant time, then loads the user and role from `users.telegram_user_id`. A missing/incorrect secret returns `401`; an unknown Telegram user or insufficient role returns `403`.
+### Как работает авторизация
 
-The bot must never take `X-Telegram-User-ID` from message text or from the client. It must use the ID supplied by Telegram in the received update. Do not expose this backend directly to the Internet; place it on a private network behind the bot service.
+1. Backend получает `X-Bot-Secret`.
+2. Сравнивает его с `BOT_INTERNAL_SECRET` из переменных окружения.
+3. Секрет сравнивается с использованием **constant-time comparison**.
+4. Backend получает `X-Telegram-User-ID`.
+5. По этому ID ищет пользователя в `users.telegram_user_id`.
+6. После этого проверяет его роль.
+7. Если роль разрешает выполнение операции — запрос выполняется.
 
-Roles:
+### Коды ошибок
 
-- `admin` — menu, tables, and staff management.
-- `waiter` — creates and manages only their own orders and order items.
-- `kitchen` — reads orders and marks order items ready.
+* `401 Unauthorized` — отсутствует или указан неправильный `X-Bot-Secret`.
+* `403 Forbidden` — Telegram-пользователь не найден или у него недостаточно прав.
 
-`telegram_user_id` is mandatory when creating a staff user. It is stable; Telegram usernames are not.
+> **Важно:** бот никогда не должен брать `X-Telegram-User-ID` из текста сообщения или от пользователя.
+>
+> ID должен браться непосредственно из Telegram Update:
+>
+> * `Update.Message.From.ID`
+> * `CallbackQuery.From.ID`
 
-## Endpoints
+Backend не следует открывать напрямую в Интернет. Рекомендуется разместить его в **приватной сети** и разрешить доступ только сервису Telegram-бота.
 
-All examples omit the two required authentication headers shown above.
+---
 
-| Method and path | Allowed role | What it does |
-| --- | --- | --- |
-| `POST /users` | admin | Creates a staff member associated with a Telegram user ID. |
-| `GET /users` | admin | Lists staff members. |
-| `DELETE /users/{id}` | admin | Removes a staff member. |
-| `POST /dishes` | admin | Adds a dish to the menu. |
-| `GET /dishes/category/{category}` | admin, waiter, kitchen | Lists dishes in a category. |
-| `GET /dishes/name/{name}` | admin, waiter, kitchen | Returns a dish by its name. |
-| `DELETE /dishes/{id}` | admin | Removes a dish from the menu. |
-| `POST /tables` | admin | Creates a restaurant table. |
-| `GET /tables` | admin, waiter, kitchen | Lists restaurant tables and their statuses. |
-| `DELETE /tables/{number}` | admin | Removes a table. |
-| `POST /orders` | waiter | Creates an order. The waiter is set from `X-Telegram-User-ID`; do not trust `waiter_id` in JSON. |
-| `GET /orders` | admin, kitchen | Lists all orders. |
-| `GET /orders/waiter/{waiter_id}` | admin, waiter | Lists a waiter's orders. A waiter may request only their own internal user ID. |
-| `GET /orders/table/{table_number}` | admin, waiter, kitchen | Gets the order for a table. A waiter may view only their own order. |
-| `PATCH /orders/{id}` | admin, waiter | Updates an order. A waiter may update only their own order and cannot reassign it. |
-| `DELETE /orders/{id}` | admin, waiter | Deletes an order. A waiter may delete only their own order. |
-| `POST /order-items` | waiter | Adds an item to the waiter's own order. |
-| `GET /order-items/{id}` | admin, waiter, kitchen | Lists an order's items. A waiter may read only their own order. |
-| `PATCH /order-items/{order_id}/{menu_item_id}/ready` | kitchen | Marks an order item ready or not ready. |
-| `PATCH /order-items/{order_id}/{menu_item_id}/count` | waiter | Changes item quantity in the waiter's own order. |
-| `DELETE /order-items/{order_id}/{menu_item_id}` | waiter | Deletes an item from the waiter's own order. |
+## Roles
 
-## Request examples
+### `admin`
 
-Create a staff user (admin only):
+Администратор может:
+
+* управлять персоналом;
+* добавлять и удалять блюда;
+* создавать и удалять столики;
+* просматривать и изменять заказы.
+
+### `waiter`
+
+Официант может:
+
+* просматривать меню;
+* просматривать столики;
+* создавать свои заказы;
+* изменять свои заказы;
+* добавлять позиции в свои заказы;
+* изменять количество позиций;
+* удалять позиции;
+* просматривать только свои заказы.
+
+Официант **не может**:
+
+* изменять чужие заказы;
+* переназначать заказ другому официанту;
+* управлять персоналом;
+* управлять меню;
+* управлять столиками.
+
+### `kitchen`
+
+Кухня может:
+
+* просматривать меню;
+* просматривать столики;
+* просматривать все заказы;
+* просматривать позиции заказов;
+* отмечать позиции как готовые или неготовые.
+
+---
+
+## Telegram User ID
+
+При создании сотрудника `telegram_user_id` является обязательным:
 
 ```json
 {
@@ -64,7 +97,76 @@ Create a staff user (admin only):
 }
 ```
 
-Create a dish (admin only):
+`telegram_user_id` является стабильным идентификатором Telegram-пользователя.
+
+**Не следует использовать Telegram username в качестве идентификатора пользователя**, поскольку username может отсутствовать или измениться.
+
+---
+
+# API Endpoints
+
+Во всех примерах ниже обязательные заголовки аутентификации не показаны.
+
+| Method   | Endpoint                                       | Role                         | Description                     |
+| -------- | ---------------------------------------------- | ---------------------------- | ------------------------------- |
+| `POST`   | `/users`                                       | `admin`                      | Создаёт сотрудника              |
+| `GET`    | `/users`                                       | `admin`                      | Возвращает список сотрудников   |
+| `DELETE` | `/users/{id}`                                  | `admin`                      | Удаляет сотрудника              |
+| `POST`   | `/dishes`                                      | `admin`                      | Добавляет блюдо                 |
+| `GET`    | `/dishes/category/{category}`                  | `admin`, `waiter`, `kitchen` | Возвращает блюда категории      |
+| `GET`    | `/dishes/name/{name}`                          | `admin`, `waiter`, `kitchen` | Возвращает блюдо по названию    |
+| `DELETE` | `/dishes/{id}`                                 | `admin`                      | Удаляет блюдо                   |
+| `POST`   | `/tables`                                      | `admin`                      | Создаёт столик                  |
+| `GET`    | `/tables`                                      | `admin`, `waiter`, `kitchen` | Возвращает столики и их статусы |
+| `DELETE` | `/tables/{number}`                             | `admin`                      | Удаляет столик                  |
+| `POST`   | `/orders`                                      | `waiter`                     | Создаёт заказ                   |
+| `GET`    | `/orders`                                      | `admin`, `kitchen`           | Возвращает все заказы           |
+| `GET`    | `/orders/waiter/{waiter_id}`                   | `admin`, `waiter`            | Возвращает заказы официанта     |
+| `GET`    | `/orders/table/{table_number}`                 | `admin`, `waiter`, `kitchen` | Возвращает заказ столика        |
+| `PATCH`  | `/orders/{id}`                                 | `admin`, `waiter`            | Обновляет заказ                 |
+| `DELETE` | `/orders/{id}`                                 | `admin`, `waiter`            | Удаляет заказ                   |
+| `POST`   | `/order-items`                                 | `waiter`                     | Добавляет позицию в заказ       |
+| `GET`    | `/order-items/{id}`                            | `admin`, `waiter`, `kitchen` | Возвращает позиции заказа       |
+| `PATCH`  | `/order-items/{order_id}/{menu_item_id}/ready` | `kitchen`                    | Изменяет статус готовности      |
+| `PATCH`  | `/order-items/{order_id}/{menu_item_id}/count` | `waiter`                     | Изменяет количество             |
+| `DELETE` | `/order-items/{order_id}/{menu_item_id}`       | `waiter`                     | Удаляет позицию                 |
+
+---
+
+# Request Examples
+
+## Create Staff User
+
+**Role:** `admin`
+
+```http
+POST /users
+X-Bot-Secret: <BOT_INTERNAL_SECRET>
+X-Telegram-User-ID: 123456789
+Content-Type: application/json
+```
+
+```json
+{
+  "telegram_user_id": 123456789,
+  "nickname": "Maria",
+  "phone_number": "+79990000000",
+  "role": "waiter"
+}
+```
+
+---
+
+## Create Dish
+
+**Role:** `admin`
+
+```http
+POST /dishes
+X-Bot-Secret: <BOT_INTERNAL_SECRET>
+X-Telegram-User-ID: 123456789
+Content-Type: application/json
+```
 
 ```json
 {
@@ -74,7 +176,18 @@ Create a dish (admin only):
 }
 ```
 
-Create an order (waiter only):
+---
+
+## Create Order
+
+**Role:** `waiter`
+
+```http
+POST /orders
+X-Bot-Secret: <BOT_INTERNAL_SECRET>
+X-Telegram-User-ID: 123456789
+Content-Type: application/json
+```
 
 ```json
 {
@@ -84,7 +197,30 @@ Create an order (waiter only):
 }
 ```
 
-Create an order item (waiter only):
+### Important
+
+`waiter_id` **не должен передаваться в JSON**.
+
+Backend должен определить официанта самостоятельно по:
+
+```http
+X-Telegram-User-ID
+```
+
+После этого backend находит соответствующего пользователя в базе данных и использует его внутренний `id`.
+
+---
+
+## Create Order Item
+
+**Role:** `waiter`
+
+```http
+POST /order-items
+X-Bot-Secret: <BOT_INTERNAL_SECRET>
+X-Telegram-User-ID: 123456789
+Content-Type: application/json
+```
 
 ```json
 {
@@ -95,13 +231,325 @@ Create an order item (waiter only):
 }
 ```
 
-## Configuration
+Backend должен дополнительно проверить, что `order_id` принадлежит официанту, который отправил запрос.
 
-Required environment variables:
+---
+
+# Configuration
+
+Необходимые переменные окружения:
 
 ```dotenv
 DATABASE_URL=postgres://user:password@host:5432/restaurant?sslmode=disable
 BOT_INTERNAL_SECRET=use-a-long-random-secret-here
 ```
 
-Before deploying, create the first admin directly in the database with a valid `telegram_user_id`, or prepare an administrative bootstrap migration. Never provide a public endpoint that lets an unknown Telegram user assign themselves the `admin` role.
+### `DATABASE_URL`
+
+URL подключения к PostgreSQL:
+
+```text
+postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=disable
+```
+
+Например:
+
+```dotenv
+DATABASE_URL=postgres://postgres:password@localhost:5432/restaurant?sslmode=disable
+```
+
+### `BOT_INTERNAL_SECRET`
+
+Секрет, который используется для проверки того, что запрос действительно пришёл от Telegram-бота.
+
+Используйте длинную случайную строку.
+
+Например:
+
+```dotenv
+BOT_INTERNAL_SECRET=very-long-random-secret
+```
+
+В production необходимо использовать действительно случайный секрет и **не хранить его непосредственно в исходном коде или Git-репозитории**.
+
+---
+
+# Initial Admin
+
+Перед запуском production-системы необходимо создать первого администратора.
+
+Это можно сделать:
+
+1. непосредственно в базе данных;
+2. через bootstrap migration;
+3. через отдельный безопасный административный механизм.
+
+Первый администратор должен иметь действительный:
+
+```text
+telegram_user_id
+```
+
+Например:
+
+```sql
+INSERT INTO users (
+    telegram_user_id,
+    nickname,
+    phone_number,
+    role
+)
+VALUES (
+    123456789,
+    'Admin',
+    '+79990000000',
+    'admin'
+);
+```
+
+> **Важно:** никогда не создавайте публичный endpoint, через который неизвестный Telegram-пользователь может самостоятельно назначить себе роль `admin`.
+
+---
+
+# Security Requirements
+
+Backend должен соблюдать следующие правила:
+
+### 1. Никогда не доверять ID пользователя из JSON
+
+Неправильно:
+
+```json
+{
+  "waiter_id": 15,
+  "table_number": 5
+}
+```
+
+если `waiter_id` используется для определения владельца заказа.
+
+Правильно:
+
+```http
+X-Telegram-User-ID: 123456789
+```
+
+Backend самостоятельно находит пользователя:
+
+```text
+Telegram User ID
+        ↓
+users.telegram_user_id
+        ↓
+internal users.id
+        ↓
+role
+        ↓
+authorization
+```
+
+### 2. Проверять владельца заказа
+
+Если пользователь имеет роль `waiter`, он может работать только со своими заказами.
+
+Например:
+
+```text
+waiter Telegram ID
+        ↓
+user.id = 15
+        ↓
+order.waiter_id = 15
+```
+
+Если:
+
+```text
+order.waiter_id != user.id
+```
+
+запрос должен быть отклонён с:
+
+```http
+403 Forbidden
+```
+
+### 3. Проверять роль
+
+Каждый endpoint должен проверять, имеет ли пользователь необходимую роль.
+
+Например:
+
+```text
+POST /dishes
+        ↓
+authentication
+        ↓
+load user
+        ↓
+check role
+        ↓
+admin?
+   ┌────┴────┐
+  yes       no
+   ↓         ↓
+ handler    403
+```
+
+### 4. Не открывать backend в Интернет
+
+Backend предназначен для взаимодействия:
+
+```text
+Telegram
+    ↓
+Bot Service
+    ↓
+Private Network
+    ↓
+Restaurant Backend
+    ↓
+PostgreSQL
+```
+
+Пользователь Telegram не должен иметь прямого доступа к backend.
+
+---
+
+# Recommended Request Flow
+
+Для каждого запроса рекомендуется следующая последовательность:
+
+```text
+HTTP Request
+     ↓
+X-Bot-Secret validation
+     ↓
+X-Telegram-User-ID validation
+     ↓
+Find user in database
+     ↓
+Check user exists
+     ↓
+Load user role
+     ↓
+Check permissions
+     ↓
+Handler
+     ↓
+Service
+     ↓
+Storage
+     ↓
+PostgreSQL
+```
+
+Таким образом, handlers не должны самостоятельно реализовывать всю логику авторизации, проверки ролей и работы с базой данных.
+
+---
+
+# Project Architecture
+
+Рекомендуемое разделение:
+
+```text
+Handler
+   ↓
+Middleware
+   ↓
+Service
+   ↓
+Storage
+   ↓
+PostgreSQL
+```
+
+### Middleware
+
+Отвечает за:
+
+* проверку `X-Bot-Secret`;
+* получение `X-Telegram-User-ID`;
+* поиск пользователя;
+* проверку авторизации;
+* передачу пользователя/его роли дальше в request context.
+
+### Handler
+
+Отвечает за:
+
+* HTTP;
+* чтение JSON;
+* валидацию HTTP-запроса;
+* формирование HTTP-ответа.
+
+### Service
+
+Отвечает за:
+
+* бизнес-логику;
+* проверки владельца заказа;
+* проверки разрешений, если они относятся к бизнес-логике;
+* взаимодействие между несколькими storage-операциями.
+
+### Storage
+
+Отвечает только за:
+
+* SQL;
+* получение данных;
+* создание данных;
+* изменение данных;
+* удаление данных.
+
+---
+
+# Summary
+
+Backend предоставляет API для управления рестораном через Telegram-бота.
+
+Основные сущности:
+
+```text
+Users
+  ↓
+Roles
+  ↓
+Tables
+  ↓
+Dishes
+  ↓
+Orders
+  ↓
+Order Items
+```
+
+Основные роли:
+
+```text
+admin
+waiter
+kitchen
+```
+
+Аутентификация строится на:
+
+```text
+BOT_INTERNAL_SECRET
++
+X-Telegram-User-ID
+```
+
+Авторизация строится на:
+
+```text
+Telegram User ID
+        ↓
+Database User
+        ↓
+Role
+        ↓
+Permission
+```
+
+Backend не является публичным API и должен быть доступен только сервису Telegram-бота.
