@@ -19,6 +19,7 @@ func NewStorage(pool *pgxpool.Pool) *Storage {
 }
 
 type OrderRequestBody struct {
+	ID          int  `json:"id"`
 	TableNumber int  `json:"table_number"`
 	WaiterID    int  `json:"waiter_id"`
 	IsServed    bool `json:"is_served"`
@@ -105,7 +106,7 @@ func (s *Storage) GetByTableNumber(ctx context.Context, number int) (models.Orde
 	return order, nil
 }
 
-func (s *Storage) GetByTablesByWaiterId(ctx context.Context, id int) ([]models.Order, error) {
+func (s *Storage) GetTablesByWaiterId(ctx context.Context, id int) ([]models.Order, error) {
 
 	orders := make([]models.Order, 0)
 
@@ -148,7 +149,8 @@ func (s *Storage) Update(ctx context.Context, order OrderRequestBody) error {
 
 	res, err := s.pool.Exec(
 		ctx,
-		"UPDATE order set table_number = $1, waiter_id = $2, is_served = $3, is_payed = $4",
+		"UPDATE order set id = $1, table_number = $2, waiter_id = $3, is_served = $4, is_payed = $5",
+		order.ID,
 		order.TableNumber,
 		order.WaiterID,
 		order.IsServed,
