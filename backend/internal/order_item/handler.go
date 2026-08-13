@@ -190,11 +190,3 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /order/items", h.AddItem)
-	mux.HandleFunc("GET /orders/{id}/items", h.GetByOrderID)
-	mux.HandleFunc("PATCH /orders/{order_id}/items/{menu_item_id}/ready", h.SetReady)
-	mux.HandleFunc("PATCH /orders/{order_id}/items/{menu_item_id}/count", h.UpdateCount)
-	mux.HandleFunc("DELETE /orders/{order_id}/items/{menu_item_id}", h.DeleteItem)
-}

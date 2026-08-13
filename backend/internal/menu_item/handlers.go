@@ -126,10 +126,3 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /dish", h.Create)
-	mux.HandleFunc("GET /dish/{category}", h.GetByCategory)
-	mux.HandleFunc("GET /dish/{name}", h.GetByName)
-	mux.HandleFunc("DELETE /dish/{id}", h.Delete)
-}

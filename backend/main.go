@@ -2,7 +2,7 @@ package main
 
 import (
 	"backend/internal/db"
-	"backend/internal/user"
+	"backend/internal/routes"
 	"log"
 	"net/http"
 
@@ -19,14 +19,9 @@ func main() {
 	}
 	defer pool.Close()
 
-	//Пользователи
-	userStorage := user.NewStorage(pool)
-	userService := user.NewService(userStorage)
-	userHandler := user.NewHandler(userService)
-
-	//Роутер
 	mux := http.NewServeMux()
-	userHandler.RegisterRoutes(mux)
+
+	routes.RegisterRoutes(mux, pool)
 
 	log.Println("Server started on :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {

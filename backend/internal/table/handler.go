@@ -93,9 +93,3 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
-
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /table", h.Create)
-	mux.HandleFunc("GET /table", h.GetAll)
-	mux.HandleFunc("DELETE /table/{number}", h.Delete)
-}

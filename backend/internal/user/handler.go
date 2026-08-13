@@ -100,10 +100,3 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /user", h.Register)
-	mux.HandleFunc("GET /user", h.GetAll)
-	mux.HandleFunc("GET /user/login", h.IsRegistered)
-	mux.HandleFunc("DELETE /user/{id}", h.Delete)
-}
