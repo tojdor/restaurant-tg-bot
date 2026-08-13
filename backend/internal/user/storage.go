@@ -22,7 +22,8 @@ func (s *Storage) Create(ctx context.Context, user models.User) (int, error) {
 	var id int
 	err := s.pool.QueryRow(
 		ctx,
-		"INSERT INTO users (nickname, phone_number, role) VALUES($1, $2, $3) RETURNING id",
+		"INSERT INTO users (telegram_user_id, nickname, phone_number, role) VALUES($1, $2, $3, $4) RETURNING id",
+		user.TelegramUserID,
 		user.Nickname,
 		user.PhoneNumber,
 		user.Role,
@@ -34,16 +35,18 @@ func (s *Storage) GetUsers(ctx context.Context) ([]models.User, error) {
 	users := make([]models.User, 0)
 
 	rows, err := s.pool.Query(ctx,
-		"SELECT id, nickname, phone_number, role FROM users")
+		"SELECT id, telegram_user_id, nickname, phone_number, role FROM users")
 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var user models.User
 		err := rows.Scan(
 			&user.ID,
+			&user.TelegramUserID,
 			&user.Nickname,
 			&user.PhoneNumber,
 			&user.Role,
@@ -55,28 +58,11 @@ func (s *Storage) GetUsers(ctx context.Context) ([]models.User, error) {
 
 		users = append(users, user)
 	}
-
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	return users, nil
-}
-
-func (s *Storage) IsRegistered(ctx context.Context, nickname string, phone string) (string, error) {
-	var role string
-
-	err := s.pool.QueryRow(ctx,
-		"SELECT role FROM users WHERE nickname = $1 OR phone_number = $2",
-		nickname,
-		phone,
-	).Scan(&role)
-
-	if err != nil {
-		return "", err
-	}
-
-	return role, nil
 }
 
 func (s *Storage) Delete(ctx context.Context, id int) error {

@@ -46,6 +46,13 @@ func (s *Service) GetByOrderID(
 	return s.storage.GetByOrderID(ctx, orderID)
 }
 
+func (s *Service) IsOwnedByWaiter(ctx context.Context, orderID, waiterID int) (bool, error) {
+	if orderID <= 0 || waiterID <= 0 {
+		return false, errors.New("invalid order or waiter id")
+	}
+	return s.storage.IsOwnedByWaiter(ctx, orderID, waiterID)
+}
+
 func (s *Service) SetReady(
 	ctx context.Context,
 	orderID int,

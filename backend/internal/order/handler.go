@@ -1,6 +1,7 @@
 package order
 
 import (
+	"backend/internal/middleware"
 	"backend/internal/models"
 	myerrors "backend/internal/my_errors"
 	"encoding/json"
@@ -26,6 +27,12 @@ func (h *OrderHandler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+	principal, ok := middleware.PrincipalFromContext(r.Context())
+	if !ok {
+		http.Error(w, "authenticated user is missing", http.StatusInternalServerError)
+		return
+	}
+	req.WaiterID = principal.UserID
 
 	id, err := h.service.Create(r.Context(), req)
 	if err != nil {
@@ -55,7 +62,7 @@ func (h *OrderHandler) GetAllOrders(w http.ResponseWriter, r *http.Request) {
 
 func (h *OrderHandler) GetOrderByTableNumber(w http.ResponseWriter, r *http.Request) {
 
-	numberStr := r.PathValue("number")
+	numberStr := r.PathValue("table_number")
 	number, err := strconv.Atoi(numberStr)
 	if err != nil || number <= 0 {
 		http.Error(w, "Invalid table number", http.StatusBadRequest)
@@ -75,6 +82,10 @@ func (h *OrderHandler) GetOrderByTableNumber(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Failed to get order", http.StatusInternalServerError)
 		return
 	}
+	if principal, ok := middleware.PrincipalFromContext(r.Context()); ok && principal.Role == "waiter" && principal.UserID != order.WaiterID {
+		http.Error(w, "waiters can view only their own orders", http.StatusForbidden)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(order)
@@ -82,10 +93,14 @@ func (h *OrderHandler) GetOrderByTableNumber(w http.ResponseWriter, r *http.Requ
 
 func (h *OrderHandler) GetOrdersByWaiterID(w http.ResponseWriter, r *http.Request) {
 
-	idStr := r.PathValue("id")
+	idStr := r.PathValue("waiter_id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
 		http.Error(w, "Invalid waiter ID", http.StatusBadRequest)
+		return
+	}
+	if principal, ok := middleware.PrincipalFromContext(r.Context()); ok && principal.Role == "waiter" && principal.UserID != id {
+		http.Error(w, "waiters can view only their own orders", http.StatusForbidden)
 		return
 	}
 
@@ -119,6 +134,12 @@ func (h *OrderHandler) UpdateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.ID = id
+	if principal, ok := middleware.PrincipalFromContext(r.Context()); ok && principal.Role == "waiter" {
+		req.WaiterID = principal.UserID
+	}
+	if !h.canManageOrder(w, r, id) {
+		return
+	}
 
 	if err := h.service.Update(r.Context(), req); err != nil {
 		if errors.Is(err, myerrors.ErrBadRequest) {
@@ -133,6 +154,7 @@ func (h *OrderHandler) UpdateOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Order updated successfully"})
 }
@@ -142,6 +164,9 @@ func (h *OrderHandler) DeleteOrder(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {
 		http.Error(w, "Invalid order ID", http.StatusBadRequest)
+		return
+	}
+	if !h.canManageOrder(w, r, id) {
 		return
 	}
 
@@ -159,4 +184,22 @@ func (h *OrderHandler) DeleteOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *OrderHandler) canManageOrder(w http.ResponseWriter, r *http.Request, orderID int) bool {
+	principal, ok := middleware.PrincipalFromContext(r.Context())
+	if !ok || principal.Role != "waiter" {
+		return true
+	}
+
+	owned, err := h.service.IsOwnedByWaiter(r.Context(), orderID, principal.UserID)
+	if err != nil {
+		http.Error(w, "failed to authorize order access", http.StatusInternalServerError)
+		return false
+	}
+	if !owned {
+		http.Error(w, "waiters can manage only their own orders", http.StatusForbidden)
+		return false
+	}
+	return true
 }

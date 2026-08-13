@@ -20,20 +20,21 @@ type Order struct {
 }
 
 type OrderItem struct {
-	OrderID   int  `json:"order_id"`
+	OrderID    int  `json:"order_id"`
 	MenuItemID int  `json:"menu_item_id"`
-	Count     int  `json:"count"`
-	IsReady   bool `json:"is_ready"`
+	Count      int  `json:"count"`
+	IsReady    bool `json:"is_ready"`
 }
 
 type Table struct {
 	Number int    `json:"number"`
-	Status string `json:"string"`
+	Status string `json:"status"`
 }
 
 type User struct {
-	ID          int    `json:"id"`
-	Nickname    string `json:"nickname"`
-	PhoneNumber string `json:"phone_number"`
-	Role        string `json:"role"`
+	ID             int    `json:"id"`
+	TelegramUserID int64  `json:"telegram_user_id"`
+	Nickname       string `json:"nickname"`
+	PhoneNumber    string `json:"phone_number"`
+	Role           string `json:"role"`
 }

@@ -31,14 +31,12 @@ func (s *Storage) Create(ctx context.Context, order models.Order) (int, error) {
 	var id int
 	err := s.pool.QueryRow(
 		ctx,
-		`INSERT INTO orders (table_number, waiter_id, is_served, is_payed, created_at, closed_at)
-		VALUES($1, $2, $3, $4, $5, $6) RETURNING id;`,
-		&order.TableNumber,
-		&order.WaiterID,
-		&order.IsServed,
-		&order.IsPayed,
-		&order.CreatedAt,
-		&order.ClosedAt,
+		`INSERT INTO orders (table_number, waiter_id, is_served, is_payed)
+		VALUES($1, $2, $3, $4) RETURNING id;`,
+		order.TableNumber,
+		order.WaiterID,
+		order.IsServed,
+		order.IsPayed,
 	).Scan(&id)
 
 	return id, err
@@ -87,11 +85,12 @@ func (s *Storage) GetByTableNumber(ctx context.Context, number int) (models.Orde
 
 	res := s.pool.QueryRow(
 		ctx,
-		`SELECT id, waiter_id, is_served, is_payed, created_at, closed_at FROM orders
+		`SELECT id, table_number, waiter_id, is_served, is_payed, created_at, closed_at FROM orders
 		WHERE table_number = $1`, number,
 	)
 	err := res.Scan(
 		&order.ID,
+		&order.TableNumber,
 		&order.WaiterID,
 		&order.IsServed,
 		&order.IsPayed,
@@ -143,6 +142,15 @@ func (s *Storage) GetByWaiterId(ctx context.Context, id int) ([]models.Order, er
 
 	return orders, nil
 
+}
+
+func (s *Storage) IsOwnedByWaiter(ctx context.Context, orderID, waiterID int) (bool, error) {
+	var owned bool
+	err := s.pool.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM orders WHERE id = $1 AND waiter_id = $2)",
+		orderID, waiterID,
+	).Scan(&owned)
+	return owned, err
 }
 
 func (s *Storage) Update(ctx context.Context, order OrderRequestBody) error {

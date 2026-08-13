@@ -38,6 +38,7 @@ func (s *Storage) GetAll(ctx context.Context) ([]models.Table, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var table models.Table

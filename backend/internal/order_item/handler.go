@@ -1,6 +1,7 @@
 package orderitem
 
 import (
+	"backend/internal/middleware"
 	"backend/internal/models"
 	"encoding/json"
 	"net/http"
@@ -39,6 +40,9 @@ func (h *Handler) AddItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !h.canManageOrder(w, r, item.OrderID) {
+		return
+	}
 	err = h.service.AddItem(r.Context(), item)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -59,6 +63,9 @@ func (h *Handler) GetByOrderID(w http.ResponseWriter, r *http.Request) {
 	orderID, err := strconv.Atoi(idStr)
 	if err != nil {
 		http.Error(w, "invalid order id", http.StatusBadRequest)
+		return
+	}
+	if !h.canManageOrder(w, r, orderID) {
 		return
 	}
 
@@ -95,6 +102,9 @@ func (h *Handler) SetReady(w http.ResponseWriter, r *http.Request) {
 	menuItemID, err := strconv.Atoi(r.PathValue("menu_item_id"))
 	if err != nil {
 		http.Error(w, "invalid menu item id", http.StatusBadRequest)
+		return
+	}
+	if !h.canManageOrder(w, r, orderID) {
 		return
 	}
 
@@ -137,6 +147,9 @@ func (h *Handler) UpdateCount(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid menu item id", http.StatusBadRequest)
 		return
 	}
+	if !h.canManageOrder(w, r, orderID) {
+		return
+	}
 
 	var req updateCountRequest
 
@@ -177,6 +190,9 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid menu item id", http.StatusBadRequest)
 		return
 	}
+	if !h.canManageOrder(w, r, orderID) {
+		return
+	}
 
 	err = h.service.DeleteItem(
 		r.Context(),
@@ -189,4 +205,21 @@ func (h *Handler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) canManageOrder(w http.ResponseWriter, r *http.Request, orderID int) bool {
+	principal, ok := middleware.PrincipalFromContext(r.Context())
+	if !ok || principal.Role != "waiter" {
+		return true
+	}
+	owned, err := h.service.IsOwnedByWaiter(r.Context(), orderID, principal.UserID)
+	if err != nil {
+		http.Error(w, "failed to authorize order access", http.StatusInternalServerError)
+		return false
+	}
+	if !owned {
+		http.Error(w, "waiters can manage only their own orders", http.StatusForbidden)
+		return false
+	}
+	return true
 }

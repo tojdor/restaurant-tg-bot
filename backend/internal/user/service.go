@@ -17,11 +17,11 @@ func NewService(storage *Storage) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, user models.User) (int, error) {
-	if user.Nickname == "" && user.PhoneNumber == "" {
+	if user.TelegramUserID <= 0 || user.Nickname == "" || user.PhoneNumber == "" {
 		return 0, myerrors.ErrBadRequest
 	}
 
-	if user.Role == "waiter" || user.Role == "kitchen" {
+	if user.Role == "admin" || user.Role == "waiter" || user.Role == "kitchen" {
 		id, err := s.storage.Create(ctx, user)
 		if err != nil {
 			return 0, err
@@ -34,19 +34,6 @@ func (s *Service) Create(ctx context.Context, user models.User) (int, error) {
 
 func (s *Service) GetUsers(ctx context.Context) ([]models.User, error) {
 	return s.storage.GetUsers(ctx)
-}
-
-func (s *Service) IsRegistered(ctx context.Context, nickname string, phone string) (string, error) {
-	if nickname == "" || phone == "" {
-		return "", myerrors.ErrBadRequest
-	}
-
-	role, err := s.storage.IsRegistered(ctx, nickname, phone)
-	if err != nil {
-		return "", err
-	}
-
-	return role, nil
 }
 
 func (s *Service) Delete(ctx context.Context, id int) error {

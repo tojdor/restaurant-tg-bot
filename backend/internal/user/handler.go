@@ -5,7 +5,6 @@ import (
 	myerrors "backend/internal/my_errors"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -13,11 +12,6 @@ import (
 
 type Handler struct {
 	service *Service
-}
-
-type IsRegisteredBody struct {
-	Nickname string `json:"nickname"`
-	Phone    string `json:"phone_number"`
 }
 
 func NewHandler(service *Service) *Handler {
@@ -35,11 +29,16 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	id, err := h.service.Create(r.Context(), user)
 	if err != nil {
-		log.Fatal("Error while trying to register")
+		if errors.Is(err, myerrors.ErrBadRequest) {
+			http.Error(w, "invalid user data", http.StatusBadRequest)
+			return
+		}
+		log.Printf("error while trying to register: %v", err)
+		http.Error(w, "failed to register user", http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Printf("Succesfully created user by id %d", id)
+	log.Printf("successfully created user with id %d", id)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -56,26 +55,6 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(users)
-}
-
-func (h *Handler) IsRegistered(w http.ResponseWriter, r *http.Request) {
-
-	var userinfo IsRegisteredBody
-
-	if err := json.NewDecoder(r.Body).Decode(&userinfo); err != nil {
-		http.Error(w, "Bad requst", http.StatusBadRequest)
-		return
-	}
-
-	role, err := h.service.IsRegistered(r.Context(), userinfo.Nickname, userinfo.Phone)
-	if err != nil {
-		http.Error(w, "Bad Request", http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(role)
-
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -99,4 +78,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unexpected error", http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

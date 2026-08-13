@@ -23,7 +23,7 @@ func (s *Storage) Create(ctx context.Context, menu models.MenuItem) (int, error)
 	var id int
 	err := s.pool.QueryRow(
 		ctx,
-		"INSERT INTO menu_item (name, price, category) VALUES($1, $2, $3) RETURNING id",
+		"INSERT INTO menu_items (name, price, category) VALUES($1, $2, $3) RETURNING id",
 		menu.Name,
 		menu.Price,
 		menu.Category,
@@ -38,7 +38,7 @@ func (s *Storage) GetByCategory(category string, ctx context.Context) ([]models.
 
 	rows, err := s.pool.Query(
 		ctx,
-		"SELECT id, name, price, category FROM menu_item WHERE category = $1", category)
+		"SELECT id, name, price, category FROM menu_items WHERE category = $1", category)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (s *Storage) GetByID(ctx context.Context, id int) (models.MenuItem, error) 
 
 	err := s.pool.QueryRow(
 		ctx,
-		"SELECT id, name, price, category FROM menu_item WHERE id=$1", id,
+		"SELECT id, name, price, category FROM menu_items WHERE id=$1", id,
 	).Scan(
 		&menu_item.ID,
 		&menu_item.Name,
@@ -92,7 +92,7 @@ func (s *Storage) GetByName(ctx context.Context, name string) (models.MenuItem, 
 
 	err := s.pool.QueryRow(
 		ctx,
-		"SELECT id, name, price, category FROM menu_item WHERE name=$1", name,
+		"SELECT id, name, price, category FROM menu_items WHERE name=$1", name,
 	).Scan(
 		&menu_item.ID,
 		&menu_item.Name,
@@ -110,7 +110,7 @@ func (s *Storage) GetByName(ctx context.Context, name string) (models.MenuItem, 
 func (s *Storage) Update(ctx context.Context, menu models.MenuItem) error {
 	res, err := s.pool.Exec(
 		ctx,
-		"UPDATE menu_item set name = $1, price = $2, category = $3 WHERE id = $4",
+		"UPDATE menu_items set name = $1, price = $2, category = $3 WHERE id = $4",
 		menu.Name,
 		menu.Price,
 		menu.Category,
@@ -132,7 +132,7 @@ func (s *Storage) Delete(ctx context.Context, id int) error {
 
 	res, err := s.pool.Exec(
 		ctx,
-		"DELETE FROM menu_item WHERE id = $1", id,
+		"DELETE FROM menu_items WHERE id = $1", id,
 	)
 
 	if err != nil {

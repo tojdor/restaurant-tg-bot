@@ -78,6 +78,15 @@ func (s *Storage) GetByOrderID(
 	return items, nil
 }
 
+func (s *Storage) IsOwnedByWaiter(ctx context.Context, orderID, waiterID int) (bool, error) {
+	var owned bool
+	err := s.pool.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM orders WHERE id = $1 AND waiter_id = $2)",
+		orderID, waiterID,
+	).Scan(&owned)
+	return owned, err
+}
+
 func (s *Storage) SetReady(
 	ctx context.Context,
 	orderID int,
@@ -107,54 +116,54 @@ func (s *Storage) SetReady(
 }
 
 func (s *Storage) UpdateCount(
-    ctx context.Context,
-    orderID int,
-    menuItemID int,
-    count int,
+	ctx context.Context,
+	orderID int,
+	menuItemID int,
+	count int,
 ) error {
-    res, err := s.pool.Exec(
-        ctx,
-        `UPDATE order_items
+	res, err := s.pool.Exec(
+		ctx,
+		`UPDATE order_items
          SET count = $1
          WHERE order_id = $2
            AND menu_item_id = $3`,
-        count,
-        orderID,
-        menuItemID,
-    )
+		count,
+		orderID,
+		menuItemID,
+	)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    if res.RowsAffected() == 0 {
-        return myerrors.ErrNotFound
-    }
+	if res.RowsAffected() == 0 {
+		return myerrors.ErrNotFound
+	}
 
-    return nil
+	return nil
 }
 
 func (s *Storage) DeleteItem(
-    ctx context.Context,
-    orderID int,
-    menuItemID int,
+	ctx context.Context,
+	orderID int,
+	menuItemID int,
 ) error {
-    res, err := s.pool.Exec(
-        ctx,
-        `DELETE FROM order_items
+	res, err := s.pool.Exec(
+		ctx,
+		`DELETE FROM order_items
          WHERE order_id = $1
            AND menu_item_id = $2`,
-        orderID,
-        menuItemID,
-    )
+		orderID,
+		menuItemID,
+	)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    if res.RowsAffected() == 0 {
-        return myerrors.ErrNotFound
-    }
+	if res.RowsAffected() == 0 {
+		return myerrors.ErrNotFound
+	}
 
-    return nil
+	return nil
 }

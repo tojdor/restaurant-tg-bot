@@ -4,6 +4,9 @@ import (
 	"backend/internal/models"
 	myerrors "backend/internal/my_errors"
 	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type Service struct {
@@ -24,6 +27,9 @@ func (s *Service) Create(ctx context.Context, menu models.MenuItem) (int, error)
 	_, err := s.storage.GetByName(ctx, menu.Name)
 	if err == nil {
 		return 0, myerrors.ErrAlreadyExists
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return 0, err
 	}
 
 	id, err := s.storage.Create(ctx, menu)
@@ -62,8 +68,8 @@ func (s *Service) Update(ctx context.Context, menu models.MenuItem) error {
 	}
 
 	_, err := s.storage.GetByID(ctx, menu.ID)
-	if err == nil {
-		return myerrors.ErrAlreadyExists
+	if err != nil {
+		return err
 	}
 
 	if err = s.storage.Update(ctx, menu); err != nil {
