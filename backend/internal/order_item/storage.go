@@ -28,7 +28,7 @@ func (s *Storage) AddItem(
             (order_id, menu_item_id, count, is_ready)
          VALUES ($1, $2, $3, $4)`,
 		item.OrderID,
-		item.MenuIemID,
+		item.MenuItemID,
 		item.Count,
 		item.IsReady,
 	)
@@ -60,7 +60,7 @@ func (s *Storage) GetByOrderID(
 
 		err := rows.Scan(
 			&item.OrderID,
-			&item.MenuIemID,
+			&item.MenuItemID,
 			&item.Count,
 			&item.IsReady,
 		)
