@@ -57,13 +57,13 @@ func (s *Service) GetByTableNumber(ctx context.Context, number int) (models.Orde
 	return order, nil
 }
 
-func (s *Service) GetTablesByWaiterId(ctx context.Context, id int) ([]models.Order, error) {
+func (s *Service) GetByWaiterId(ctx context.Context, id int) ([]models.Order, error) {
 
 	if id < 0 {
 		return nil, myerrors.ErrBadRequest
 	}
 
-	res, err := s.storage.GetTablesByWaiterId(ctx, id)
+	res, err := s.storage.GetByWaiterId(ctx, id)
 	if err != nil {
 		return nil, err
 	}

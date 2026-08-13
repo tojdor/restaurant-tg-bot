@@ -89,7 +89,7 @@ func (h *OrderHandler) GetOrdersByWaiterID(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	orders, err := h.service.GetTablesByWaiterId(r.Context(), id)
+	orders, err := h.service.GetByWaiterId(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, myerrors.ErrBadRequest) {
 			http.Error(w, "Invalid waiter ID", http.StatusBadRequest)
